@@ -5,13 +5,13 @@ import '../models/person.dart';
 import '../models/user.dart';
 
 class ApiService {
-  // Use localhost for web, 10.0.2.2 for Android emulator
-  static String get baseUrl => kIsWeb ? 'http://localhost:8000' : 'http://10.0.2.2:8000';
+  static String get baseUrl =>
+      kIsWeb ? 'http://localhost:8000' : 'http://10.0.2.2:8000';
 
-  // ============= Authentication Methods =============
-  
-  // Register a new user
-  static Future<User> register(String nom, String prenom, String numero, String motDePasse) async {
+  // ================= AUTH =================
+
+  static Future<User> register(
+      String nom, String prenom, String numero, String motDePasse) async {
     final response = await http.post(
       Uri.parse('$baseUrl/auth/register'),
       headers: {'Content-Type': 'application/json'},
@@ -22,16 +22,14 @@ class ApiService {
         'mot_de_passe': motDePasse,
       }),
     );
-    
+
     if (response.statusCode == 200) {
       return User.fromJson(jsonDecode(response.body));
     } else {
-      final error = jsonDecode(response.body);
-      throw Exception(error['detail'] ?? 'Erreur lors de l\'inscription');
+      throw Exception(jsonDecode(response.body)['detail']);
     }
   }
 
-  // Login user
   static Future<User> login(String numero, String motDePasse) async {
     final response = await http.post(
       Uri.parse('$baseUrl/auth/login'),
@@ -41,96 +39,89 @@ class ApiService {
         'mot_de_passe': motDePasse,
       }),
     );
-    
+
     if (response.statusCode == 200) {
       return User.fromJson(jsonDecode(response.body));
     } else {
-      final error = jsonDecode(response.body);
-      throw Exception(error['detail'] ?? 'Erreur de connexion');
+      throw Exception(jsonDecode(response.body)['detail']);
     }
   }
 
-  // ============= Person Methods =============
+  // ================= PERSON =================
 
-  // Récupérer toutes les personnes
   static Future<List<Person>> getPersons(int userId) async {
-    final response = await http.get(Uri.parse('$baseUrl/personnes/$userId'));
-    
+    final response =
+    await http.get(Uri.parse('$baseUrl/personnes/$userId'));
+
     if (response.statusCode == 200) {
-      List<dynamic> body = jsonDecode(response.body);
-      return body.map((dynamic item) => Person.fromJson(item)).toList();
+      return (jsonDecode(response.body) as List)
+          .map((e) => Person.fromJson(e))
+          .toList();
     } else {
-      throw Exception('Erreur lors du chargement des personnes');
+      throw Exception('Erreur chargement contacts');
     }
   }
 
-  // Rechercher des personnes
-  static Future<List<Person>> searchPersons(int userId, String query) async {
-    final response = await http.get(Uri.parse('$baseUrl/personnes/search/$userId/$query'));
-    
+  static Future<List<Person>> searchPersons(
+      int userId, String query) async {
+    final response = await http
+        .get(Uri.parse('$baseUrl/personnes/search/$userId/$query'));
+
     if (response.statusCode == 200) {
-      List<dynamic> body = jsonDecode(response.body);
-      return body.map((dynamic item) => Person.fromJson(item)).toList();
+      return (jsonDecode(response.body) as List)
+          .map((e) => Person.fromJson(e))
+          .toList();
     } else {
-      throw Exception('Erreur lors de la recherche');
+      throw Exception('Erreur recherche');
     }
   }
 
-
-
-  // Récupérer une personne par ID
   static Future<Person> getPerson(int userId, int id) async {
-    final response = await http.get(Uri.parse('$baseUrl/personnes/detail/$userId/$id'));
-    
+    final response = await http
+        .get(Uri.parse('$baseUrl/personnes/detail/$userId/$id'));
+
     if (response.statusCode == 200) {
       return Person.fromJson(jsonDecode(response.body));
     } else {
-      throw Exception('Personne non trouvée');
+      throw Exception('Contact introuvable');
     }
   }
 
-
-
-  // Ajouter une personne
   static Future<Person> addPerson(Person person) async {
     final response = await http.post(
       Uri.parse('$baseUrl/personnes'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode(person.toJson()),
     );
-    
+
     if (response.statusCode == 200) {
       return Person.fromJson(jsonDecode(response.body));
     } else {
-      throw Exception('Erreur lors de l\'ajout de la personne');
+      throw Exception(jsonDecode(response.body)['detail']);
     }
   }
 
-
-  // Mettre à jour une personne
-  static Future<Person> updatePerson(int userId, int id, Person person) async {
+  static Future<Person> updatePerson(
+      int userId, int id, Person person) async {
     final response = await http.put(
       Uri.parse('$baseUrl/personnes/$userId/$id'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode(person.toJson()),
     );
-    
+
     if (response.statusCode == 200) {
       return Person.fromJson(jsonDecode(response.body));
     } else {
-      throw Exception('Erreur lors de la mise à jour de la personne');
+      throw Exception(jsonDecode(response.body)['detail']);
     }
   }
 
-
-
-
-  // Supprimer une personne
   static Future<void> deletePerson(int userId, int id) async {
-    final response = await http.delete(Uri.parse('$baseUrl/personnes/$userId/$id'));
-    
+    final response =
+    await http.delete(Uri.parse('$baseUrl/personnes/$userId/$id'));
+
     if (response.statusCode != 200) {
-      throw Exception('Erreur lors de la suppression de la personne');
+      throw Exception('Erreur suppression');
     }
   }
 }

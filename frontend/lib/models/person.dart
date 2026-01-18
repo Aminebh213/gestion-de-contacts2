@@ -22,14 +22,11 @@ class Person {
       userId: json['user_id'],
     );
   }
-  
 
-  Map<String, dynamic> toJson() {
-    return {
-      'nom': nom,
-      'prenom': prenom,
-      'telephone': telephone,
-      'user_id': userId,
-    };
-  }
+  Map<String, dynamic> toJson() => {
+    'nom': nom,
+    'prenom': prenom,
+    'telephone': telephone,
+    'user_id': userId,
+  };
 }

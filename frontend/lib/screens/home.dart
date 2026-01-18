@@ -25,135 +25,68 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _initializeUser() async {
     final user = await AuthService.getCurrentUser();
     if (user != null) {
-      setState(() {
-        currentUserId = user.id;
-      });
+      currentUserId = user.id;
       _loadPersons();
     } else {
-      // No user logged in, redirect to login
       Navigator.pushReplacementNamed(context, '/connexion');
     }
   }
 
-  @override
-  void dispose() {
-    searchController.dispose();
-    super.dispose();
-  }
-
   Future<void> _loadPersons() async {
     if (currentUserId == null) return;
-    
-    setState(() {
-      isLoading = true;
-    });
-    
+    setState(() => isLoading = true);
+
     try {
-      List<Person> loadedPersons;
-      if (searchQuery.isEmpty) {
-        loadedPersons = await ApiService.getPersons(currentUserId!);
-      } else {
-        loadedPersons = await ApiService.searchPersons(currentUserId!, searchQuery);
-      }
-      
-      setState(() {
-        persons = loadedPersons;
-        isLoading = false;
-      });
+      persons = searchQuery.isEmpty
+          ? await ApiService.getPersons(currentUserId!)
+          : await ApiService.searchPersons(currentUserId!, searchQuery);
     } catch (e) {
-      setState(() {
-        isLoading = false;
-      });
       _showErrorDialog(e.toString());
     }
+
+    setState(() => isLoading = false);
   }
 
   void _onSearchChanged(String value) {
-    setState(() {
-      searchQuery = value;
-    });
+    searchQuery = value;
     _loadPersons();
   }
 
-  Future<void> _deletePerson(int id) async {
-    if (currentUserId == null) return;
-    
-    try {
-      await ApiService.deletePerson(currentUserId!, id);
-      _loadPersons();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Contact supprimé avec succès')),
-      );
-    } catch (e) {
-      _showErrorDialog(e.toString());
-    }
-  }
-
-
-
-  void _showErrorDialog(String message) {
+  void _showErrorDialog(String msg) {
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
+      builder: (_) => AlertDialog(
         title: Text('Erreur'),
-        content: Text(message),
+        content: Text(msg),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
+            onPressed: () => Navigator.pop(context),
             child: Text('OK'),
-          ),
+          )
         ],
       ),
     );
   }
 
-
-
   void _navigateToAddPerson() async {
     final result = await Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => AddPersonScreen()),
+      MaterialPageRoute(builder: (_) => AddPersonScreen()),
     );
-    if (result == true) {
-      _loadPersons();
-    }
+    if (result == true) _loadPersons();
   }
-
-
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Liste des Contacts'),
-        backgroundColor: Colors.blue,
+        title: Text('Liste des contacts'),
         actions: [
           IconButton(
             icon: Icon(Icons.logout),
-            tooltip: 'Déconnexion',
             onPressed: () async {
-              final confirmed = await showDialog<bool>(
-                context: context,
-                builder: (ctx) => AlertDialog(
-                  title: Text('Déconnexion'),
-                  content: Text('Voulez-vous vraiment vous déconnecter?'),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.of(ctx).pop(false),
-                      child: Text('Annuler'),
-                    ),
-                    TextButton(
-                      onPressed: () => Navigator.of(ctx).pop(true),
-                      child: Text('Déconnexion', style: TextStyle(color: Colors.red)),
-                    ),
-                  ],
-                ),
-              );
-              
-              if (confirmed == true) {
-                await AuthService.logout();
-                Navigator.pushReplacementNamed(context, '/connexion');
-              }
+              await AuthService.logout();
+              Navigator.pushReplacementNamed(context, '/connexion');
             },
           ),
         ],
@@ -161,116 +94,107 @@ class _HomeScreenState extends State<HomeScreen> {
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.all(16.0),
+            padding: EdgeInsets.all(16),
             child: TextField(
               controller: searchController,
+              onChanged: _onSearchChanged,
               decoration: InputDecoration(
-                hintText: 'Rechercher un contact...',
+                hintText: 'Rechercher...',
                 prefixIcon: Icon(Icons.search),
-                suffixIcon: searchQuery.isNotEmpty
-                    ? IconButton(
-                        icon: Icon(Icons.clear),
-                        onPressed: () {
-                          searchController.clear();
-                          _onSearchChanged('');
-                        },
-                      )
-                    : null,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
                 ),
               ),
-              onChanged: _onSearchChanged,
             ),
           ),
           Expanded(
             child: isLoading
                 ? Center(child: CircularProgressIndicator())
-                : persons.isEmpty
-                    ? Center(
-                        child: Text(
-                          searchQuery.isEmpty
-                              ? 'Aucun contact trouvé'
-                              : 'Aucun résultat pour "$searchQuery"',
-                          style: TextStyle(fontSize: 18),
-                        ),
-                      )
-                    : ListView.builder(
-                  itemCount: persons.length,
-                  itemBuilder: (ctx, index) {
-                    final person = persons[index];
-                    return Card(
-                      margin: EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-                      child: ListTile(
-                        title: Text('${person.prenom} ${person.nom}'),
-                        subtitle: Text(person.telephone),
-                        leading: CircleAvatar(
-                          child: Text(
-                            person.prenom.isNotEmpty
-                                ? person.prenom[0].toUpperCase()
-                                : '?',
+                : ListView.builder(
+              itemCount: persons.length,
+              itemBuilder: (context, index) {
+                final person = persons[index];
+
+                return Dismissible(
+                  key: Key(person.id.toString()),
+                  direction: DismissDirection.endToStart,
+                  background: Container(
+                    color: Colors.red,
+                    alignment: Alignment.centerRight,
+                    padding: EdgeInsets.only(right: 20),
+                    child: Icon(Icons.delete, color: Colors.white),
+                  ),
+                  confirmDismiss: (_) async {
+                    return await showDialog<bool>(
+                      context: context,
+                      builder: (_) => AlertDialog(
+                        title: Text('Supprimer'),
+                        content: Text(
+                            'Supprimer ${person.prenom} ${person.nom} ?'),
+                        actions: [
+                          TextButton(
+                            onPressed: () =>
+                                Navigator.pop(context, false),
+                            child: Text('Annuler'),
                           ),
-                        ),
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            IconButton(
-                              icon: Icon(Icons.edit, color: Colors.blue),
-                              onPressed: () async {
-                                final result = await Navigator.pushNamed(
-                                  context,
-                                  '/modifier',
-                                  arguments: person.id,
-                                );
-                                if (result == true) {
-                                  _loadPersons();
-                                }
-                              },
+                          TextButton(
+                            onPressed: () =>
+                                Navigator.pop(context, true),
+                            child: Text(
+                              'Supprimer',
+                              style: TextStyle(color: Colors.red),
                             ),
-                            IconButton(
-                              icon: Icon(Icons.delete, color: Colors.red),
-                              onPressed: () async {
-                                final confirm = await showDialog<bool>(
-                                  context: context,
-                                  builder: (BuildContext context) {
-                                    return AlertDialog(
-                                      title: Text('Confirmer la suppression'),
-                                      content: Text(
-                                          'Êtes-vous sûr de vouloir supprimer ${person.prenom} ${person.nom} ?'),
-                                      actions: [
-                                        TextButton(
-                                          onPressed: () =>
-                                              Navigator.of(context).pop(false),
-                                          child: Text('Annuler'),
-                                        ),
-                                        TextButton(
-                                          onPressed: () =>
-                                              Navigator.of(context).pop(true),
-                                          child: Text('Supprimer',
-                                              style: TextStyle(color: Colors.red)),
-                                        ),
-                                      ],
-                                    );
-                                  },
-                                );
-                                if (confirm == true) {
-                                  _deletePerson(person.id!);
-                                }
-                              },
-                            ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
                     );
                   },
-                ),
+                  onDismissed: (_) async {
+                    final deleted = persons[index];
+                    setState(() => persons.removeAt(index));
+
+                    try {
+                      await ApiService.deletePerson(
+                          currentUserId!, deleted.id!);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Contact supprimé')),
+                      );
+                    } catch (e) {
+                      _showErrorDialog('Erreur suppression');
+                      _loadPersons();
+                    }
+                  },
+                  child: Card(
+                    margin: EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 8),
+                    child: ListTile(
+                      leading: CircleAvatar(
+                        child: Text(person.prenom[0].toUpperCase()),
+                      ),
+                      title:
+                      Text('${person.prenom} ${person.nom}'),
+                      subtitle: Text(person.telephone),
+                      trailing: IconButton(
+                        icon: Icon(Icons.edit),
+                        onPressed: () async {
+                          final res =
+                          await Navigator.pushNamed(context,
+                              '/modifier',
+                              arguments: person.id);
+                          if (res == true) _loadPersons();
+                        },
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
           ),
         ],
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _navigateToAddPerson,
         child: Icon(Icons.add),
-        backgroundColor: Colors.blue,
       ),
     );
   }
